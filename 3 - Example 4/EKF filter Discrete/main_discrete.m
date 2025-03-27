@@ -5,11 +5,11 @@ clear
 %-------------------------------------------------------------------------
 % Real system
 real_inital_position = [-0.4;0.3];
-real_inital_surge = 2;
-real_inital_yaw = 25;
-real_inital_r = 6;
+real_inital_surge = 5;
+real_inital_yaw = pi/2;
+real_inital_r = -0.2;
 
-use_position_noise = 0;
+use_position_noise = 1;
 output_position_power = 0.005;
 
 %--------------------------------------------------------------------------
@@ -19,26 +19,23 @@ output_position_power = 0.005;
 %--------------------------------------------------------------------------
 % Filter initiation
     % State Noise
-    Q_pos = 10; % Position
-    Q_surge = 10; %
-    Q_yaw = 10;
-    Q_r = 10;
+    Q_pos = 1; % Position
+    Q_surge = 0.1; %
+    Q_yaw = pi/16; % 11.25 degrees
+    Q_r = 0.01;
 
     % Measurement Noise
-    R = 1; % Range Noise
-
-    % Initial covariance matrix
-    covariance = 10;
-
+    R_pos = 10; % Range Noise
+   
     % Initial estimate
-    initial_x_estimate = real_inital_position(1) - 0.2 * real_inital_position(1);
-    initial_y_estimate = real_inital_position(2) + 0.1 * real_inital_position(2);
-    initial_surge_estimate = real_inital_surge + 0.02 * real_inital_surge;
-    initial_yaw_estimate = real_inital_yaw + real_inital_yaw*0.01;
+    initial_x_estimate = real_inital_position(1) - rand * real_inital_position(1);
+    initial_y_estimate = real_inital_position(2) + rand * real_inital_position(2);
+    initial_surge_estimate = real_inital_surge + (rand*0.1) * real_inital_surge;
+    % initial_surge_estimate = 0;
+    initial_yaw_estimate = real_inital_yaw + (rand*0.2) * real_inital_yaw;
     initial_yaw_estimate = 0;
-
-    initial_r_estimate = real_inital_r;
-    initial_r_estimate = real_inital_r + 0.05 * real_inital_r;
+    initial_r_estimate = real_inital_r + (rand*0.01) * real_inital_r;
+    initial_r_estimate = 0;
 %--------------------------------------------------------------------------
 
 %% System
@@ -55,13 +52,13 @@ F = [
     0 0 0 0 1];
 
 % Nonlinear dynamics matrix - position calculation
-f_x = @(x,u,yaw) x + u * cosd(yaw) * Ts ;
-f_y = @(y,u,yaw) y + u * sind(yaw) * Ts ;
+f_x = @(x,u,yaw) x + u * cos(yaw) * Ts ;
+f_y = @(y,u,yaw) y + u * sin(yaw) * Ts ;
 
 % jacobian of nonlinear output matrix 
 J_f = @(x_hat,y_hat, u_hat, yaw_hat, r_hat) [...
-    1, 0, cosd(yaw_hat) * Ts, -u_hat * sind(yaw_hat) * Ts, 0; ...
-    0, 1, sind(yaw_hat) * Ts, u_hat * cosd(yaw_hat) * Ts, 0 ];
+    1, 0, cos(yaw_hat) * Ts, -u_hat * sin(yaw_hat) * Ts, 0; ...
+    0, 1, sin(yaw_hat) * Ts, u_hat * cos(yaw_hat) * Ts, 0 ];
 
 B = 0;
 
@@ -71,13 +68,15 @@ H = [1 0 0 0 0;
 
 D = 0;
 
-%% Filter Initiati
+%% Filter Initiatiom
 
 state0_hat = [initial_x_estimate; initial_y_estimate; initial_surge_estimate; initial_yaw_estimate; initial_r_estimate];
 
-P0 = diag([covariance,covariance,covariance,covariance,covariance]);
-
 Q = diag([Q_pos,Q_pos,Q_surge,Q_yaw,Q_r]);
+
+% P0 = diag([covariance,covariance,covariance,covariance,covariance]);
+P0 = 2*Q;
+R = diag([R_pos,R_pos]);
 
 %% Pass data to sim
 
@@ -93,4 +92,4 @@ busInfo = Simulink.Bus.createObject(sim_data);
 busObject = eval(busInfo.busName);
 
 % run(simulation.slx)
-sim("simulation_discrete",10);
+sim("simulation_discrete",30);
